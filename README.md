@@ -11,4 +11,5 @@ static file server with SSL support
 
 ## TODO
 
+* serv both http and https
 * avoid using openssl, use internal crypto/tls package to generate keys
