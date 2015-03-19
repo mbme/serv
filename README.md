@@ -1,4 +1,4 @@
-# serv-dir
+# serv
 static file server with SSL support
 
 ## DEPENDENCIES
