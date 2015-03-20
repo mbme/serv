@@ -8,6 +8,10 @@ import (
 
 	"io/ioutil"
 
+	"path/filepath"
+
+	"sync"
+
 	"github.com/codegangsta/cli"
 )
 
@@ -31,7 +35,19 @@ func readFile(name string) []byte {
 	return data
 }
 
-func listenAndServ(srv *http.Server, cert, key []byte) error {
+func servHTTP(wg *sync.WaitGroup, port string) {
+	defer wg.Done()
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func servHTTPS(wg *sync.WaitGroup, sslPort string, cert, key []byte) {
+	defer wg.Done()
+
+	srv := &http.Server{Addr: ":" + sslPort}
+
 	config := &tls.Config{}
 	if srv.TLSConfig != nil {
 		*config = *srv.TLSConfig
@@ -46,30 +62,45 @@ func listenAndServ(srv *http.Server, cert, key []byte) error {
 	var err error
 	config.Certificates[0], err = tls.X509KeyPair(cert, key)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	tlsListener, err := tls.Listen("tcp", srv.Addr, config)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	return srv.Serve(tlsListener)
+	if err := srv.Serve(tlsListener); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "servs"
+	app.Name = "serv"
+	app.Usage = "Simple static files server with SSL support"
+	app.Version = "0.0.2"
+	app.Author = "github.com/mbme"
 
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port,p",
 			Value: 8080,
-			Usage: "websockets port",
+			Usage: "http port",
+		},
+		cli.StringFlag{
+			Name:  "dir,d",
+			Value: ".",
+			Usage: "directory to serv",
 		},
 		cli.BoolFlag{
 			Name:  "ssl",
 			Usage: "enable https",
+		},
+		cli.IntFlag{
+			Name:  "ssl-port",
+			Value: 8443,
+			Usage: "https port",
 		},
 		cli.StringFlag{
 			Name:  "cert",
@@ -84,42 +115,46 @@ func main() {
 	}
 
 	app.Action = func(c *cli.Context) {
-		port := c.String("port")
-		log.Printf("listening on port %v", port)
-
-		http.Handle("/", http.FileServer(http.Dir(".")))
-
-		if !c.Bool("ssl") {
-			log.Println("SSL disabled")
-			if err := http.ListenAndServe(":"+port, nil); err != nil {
-				log.Fatal(err)
-			}
-			return
-		}
-
-		log.Println("SSL enabled")
-
-		certPath := c.String("cert")
-		keyPath := c.String("key")
-
-		var cert []byte
-		var key []byte
-		if len(certPath) == 0 || len(keyPath) == 0 {
-			log.Println("using embedded certificate and key")
-
-			cert = readAsset("server.crt")
-			key = readAsset("server.key")
-		} else {
-			log.Println("using provided certificate and key")
-
-			cert = readFile(certPath)
-			key = readFile(keyPath)
-		}
-
-		server := &http.Server{Addr: ":" + port}
-		if err := listenAndServ(server, cert, key); err != nil {
+		dir, err := filepath.Abs(c.String("dir"))
+		if err != nil {
 			log.Fatal(err)
 		}
+		log.Println("serving directory", dir)
+		http.Handle("/", http.FileServer(http.Dir(dir)))
+
+		var wg sync.WaitGroup
+
+		port := c.String("port")
+		log.Println(" http: listening on port", port)
+		wg.Add(1)
+		go servHTTP(&wg, port)
+
+		if c.Bool("ssl") {
+			sslPort := c.String("ssl-port")
+			log.Printf("https: listening on port %v", sslPort)
+
+			certPath := c.String("cert")
+			keyPath := c.String("key")
+
+			var cert []byte
+			var key []byte
+			if len(certPath) == 0 || len(keyPath) == 0 {
+				log.Println("using embedded certificate and key")
+
+				cert = readAsset("server.crt")
+				key = readAsset("server.key")
+			} else {
+				log.Println("using provided certificate and key")
+
+				cert = readFile(certPath)
+				key = readFile(keyPath)
+			}
+
+			wg.Add(1)
+			go servHTTPS(&wg, sslPort, cert, key)
+		}
+
+		wg.Wait()
 	}
 
 	if err := app.Run(os.Args); err != nil {
