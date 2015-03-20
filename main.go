@@ -15,6 +15,10 @@ import (
 	"github.com/codegangsta/cli"
 )
 
+func isEmpty(str string) bool {
+	return str == ""
+}
+
 func readAsset(name string) []byte {
 	data, err := Asset(name)
 
@@ -69,7 +73,31 @@ func servHTTPS(wg *sync.WaitGroup, sslPort string, cert, key []byte) {
 	}
 }
 
+var appHelpTemplate = `NAME:
+	{{.Name}} - {{.Usage}}
+
+USAGE:
+	{{.Name}} [global options...] directory
+
+If directory not specified then use current working directory
+
+VERSION:
+	{{.Version}}
+
+AUTHOR(S):
+	{{range .Authors}}{{ . }}
+	{{end}}
+COMMANDS:
+	{{range .Commands}}{{join .Names ", "}}{{ "\t" }}{{.Usage}}
+	{{end}}{{if .Flags}}
+GLOBAL OPTIONS:
+	{{range .Flags}}{{.}}
+	{{end}}{{end}}
+`
+
 func main() {
+	cli.AppHelpTemplate = appHelpTemplate
+
 	app := cli.NewApp()
 	app.Name = "serv"
 	app.Usage = "Simple static web server with SSL support"
@@ -81,11 +109,6 @@ func main() {
 			Name:  "port,p",
 			Value: 80,
 			Usage: "http port",
-		},
-		cli.StringFlag{
-			Name:  "dir,d",
-			Value: ".",
-			Usage: "directory to serv",
 		},
 		cli.BoolFlag{
 			Name:  "ssl",
@@ -109,7 +132,13 @@ func main() {
 	}
 
 	app.Action = func(c *cli.Context) {
-		dir, err := filepath.Abs(c.String("dir"))
+
+		dirPath := c.Args().First()
+		if isEmpty(dirPath) {
+			dirPath = "."
+		}
+
+		dir, err := filepath.Abs(dirPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -122,7 +151,6 @@ func main() {
 		log.Println(" http: listening on port", port)
 		wg.Add(1)
 		go servHTTP(&wg, port)
-
 		if c.Bool("ssl") {
 			sslPort := c.String("ssl-port")
 			log.Printf("https: listening on port %v", sslPort)
@@ -132,7 +160,7 @@ func main() {
 
 			var cert []byte
 			var key []byte
-			if len(certPath) == 0 || len(keyPath) == 0 {
+			if isEmpty(certPath) || isEmpty(keyPath) {
 				log.Println("https: using embedded certificate and key")
 
 				cert = readAsset("server.crt")
