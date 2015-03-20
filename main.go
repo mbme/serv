@@ -49,13 +49,7 @@ func servHTTPS(wg *sync.WaitGroup, sslPort string, cert, key []byte) {
 	srv := &http.Server{Addr: ":" + sslPort}
 
 	config := &tls.Config{}
-	if srv.TLSConfig != nil {
-		*config = *srv.TLSConfig
-	}
-
-	if config.NextProtos == nil {
-		config.NextProtos = []string{"http/1.1"}
-	}
+	config.NextProtos = []string{"http/1.1"}
 
 	config.Certificates = make([]tls.Certificate, 1)
 
@@ -78,14 +72,14 @@ func servHTTPS(wg *sync.WaitGroup, sslPort string, cert, key []byte) {
 func main() {
 	app := cli.NewApp()
 	app.Name = "serv"
-	app.Usage = "Simple static files server with SSL support"
+	app.Usage = "Simple static web server with SSL support"
 	app.Version = "0.0.2"
 	app.Author = "github.com/mbme"
 
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port,p",
-			Value: 8080,
+			Value: 80,
 			Usage: "http port",
 		},
 		cli.StringFlag{
@@ -99,7 +93,7 @@ func main() {
 		},
 		cli.IntFlag{
 			Name:  "ssl-port",
-			Value: 8443,
+			Value: 443,
 			Usage: "https port",
 		},
 		cli.StringFlag{
@@ -139,12 +133,12 @@ func main() {
 			var cert []byte
 			var key []byte
 			if len(certPath) == 0 || len(keyPath) == 0 {
-				log.Println("using embedded certificate and key")
+				log.Println("https: using embedded certificate and key")
 
 				cert = readAsset("server.crt")
 				key = readAsset("server.key")
 			} else {
-				log.Println("using provided certificate and key")
+				log.Println("https: using provided certificate and key")
 
 				cert = readFile(certPath)
 				key = readFile(keyPath)
