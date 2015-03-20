@@ -96,6 +96,10 @@ GLOBAL OPTIONS:
 `
 
 func main() {
+	// use stdout instead of stderr
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.Ltime)
+
 	cli.AppHelpTemplate = appHelpTemplate
 
 	app := cli.NewApp()
@@ -107,7 +111,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port,p",
-			Value: 80,
+			Value: 8080,
 			Usage: "http port",
 		},
 		cli.BoolFlag{
@@ -116,7 +120,7 @@ func main() {
 		},
 		cli.IntFlag{
 			Name:  "ssl-port",
-			Value: 443,
+			Value: 8443,
 			Usage: "https port",
 		},
 		cli.StringFlag{
