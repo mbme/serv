@@ -1,4 +1,5 @@
 CERTS := ./certs
+SRC_DIR := ./src/serv
 
 clean-certs:
 	rm -rf $(CERTS)
@@ -11,7 +12,7 @@ gen-certs: clean-certs
 
 	openssl req -new -key $(CERTS)/server.key -out $(CERTS)/server.csr
 	openssl x509 -req -days 365 -in $(CERTS)/server.csr -signkey $(CERTS)/server.key -out $(CERTS)/server.crt
-	go-bindata -o certs.go -nomemcopy -prefix "certs" certs/...
+	go-bindata -o $(SRC_DIR)/certs.go -nomemcopy -prefix "certs" certs/...
 
-deps:
-	go get -u github.com/codegangsta/cli
+build:
+	gb build all
