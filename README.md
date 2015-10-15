@@ -3,10 +3,10 @@ static file server with SSL support
 
 ## DEPENDENCIES
 
-* go 1.5+ to compile app
+* go 1.5+
 * [gb](https://github.com/constabulary/gb) as go build tool
 
-* GNU make to generate new certificates
+Optional:
 * openssl to generate new certificates
 * [go-bindata](https://github.com/jteeuwen/go-bindata) to embed new certificates into app
 
